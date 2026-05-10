@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolrSearch — Student Records Portal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh}
+.topnav{background:#fff;border-bottom:1px solid #e5e5e2;padding:10px 24px;display:flex;align-items:center;gap:10px}
+.topnav .brand{font-size:15px;font-weight:500}
+.topnav .sub{font-size:12px;color:#888;margin-left:4px}
+.status{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+.status.live{background:#E1F5EE;color:#085041}
+.status.demo{background:#FAEEDA;color:#633806}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 45px)}
+.sidebar{background:#fff;border-right:1px solid #e5e5e2;padding:20px 14px}
+.sidebar h2{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#999;margin-bottom:10px}
+.main{padding:20px}
+.topbar{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+.search-wrap{flex:1;position:relative}
+.search-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#aaa}
+.search-wrap input{width:100%;padding:9px 12px 9px 34px;font-size:14px;border:1px solid #ddd;border-radius:8px;background:#fff;outline:none}
+.search-wrap input:focus{border-color:#999}
+select{padding:8px 10px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat-card{background:#fff;border:1px solid #e5e5e2;border-radius:8px;padding:12px 14px}
+.stat-card .num{font-size:22px;font-weight:500}
+.stat-card .lbl{font-size:11px;color:#888;margin-top:2px}
+.results-grid{display:grid;gap:8px}
+.card{background:#fff;border:1px solid #e5e5e2;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;transition:border-color .15s}
+.card:hover{border-color:#aaa}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.card-body{flex:1;min-width:0}
+.card-name{font-size:14px;font-weight:500;margin-bottom:2px}
+.card-dept{font-size:12px;color:#666}
+.card-meta{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px}
+.cgpa-bar-wrap{width:80px;flex-shrink:0;text-align:right}
+.cgpa-val{font-size:18px;font-weight:500}
+.cgpa-lbl{font-size:10px;color:#aaa}
+.cgpa-bar{height:4px;border-radius:2px;background:#eee;margin-top:4px}
+.cgpa-fill{height:100%;border-radius:2px}
+.facet-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:2px;user-select:none}
+.facet-item:hover{background:#f5f5f3}
+.facet-item.active{background:#E6F1FB;color:#185FA5}
+.facet-count{font-size:11px;color:#aaa;background:#f0f0ee;padding:1px 6px;border-radius:10px}
+.facet-item.active .facet-count{background:rgba(255,255,255,.5);color:#185FA5}
+.year-btns{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px}
+.ybtn{padding:3px 10px;font-size:12px;border:1px solid #ddd;border-radius:20px;cursor:pointer;background:transparent;color:#666}
+.ybtn.active{background:#E6F1FB;border-color:#B5D4F4;color:#185FA5}
+.range-row{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.range-row input[type=number]{width:60px;padding:5px 7px;font-size:12px;border:1px solid #ddd;border-radius:6px}
+.sep{height:1px;background:#e5e5e2;margin:14px 0}
+.empty{text-align:center;padding:3rem;color:#888;background:#fff;border:1px solid #e5e5e2;border-radius:12px}
+.empty i{font-size:32px;display:block;margin-bottom:8px;color:#ccc}
+mark.hl{background:#fff176;color:#333;border-radius:2px;padding:0 2px}
+.results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;color:#666}
+.action-btn{width:100%;font-size:12px;padding:7px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;color:#444;margin-bottom:5px}
+.action-btn:hover{background:#f5f5f3}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <i class="ti ti-database" style="font-size:18px;color:#888"></i>
+  <span class="brand">SolrSearch</span>
+  <span class="sub">Student Records Portal</span>
+  <span class="status" id="status">● Connecting...</span>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Department</h2>
+    <div id="facets"></div>
+
+    <div class="sep"></div>
+    <h2>Year of Study</h2>
+    <div class="year-btns" id="year-btns">
+      <button class="ybtn active" data-year="">All</button>
+      <button class="ybtn" data-year="1">Year 1</button>
+      <button class="ybtn" data-year="2">Year 2</button>
+      <button class="ybtn" data-year="3">Year 3</button>
+      <button class="ybtn" data-year="4">Year 4</button>
+    </div>
+
+    <div class="sep"></div>
+    <h2>CGPA range</h2>
+    <div class="range-row">
+      <input type="number" id="cgpa-min" value="0" min="0" max="4" step="0.1" placeholder="Min">
+      <span style="font-size:12px;color:#aaa">to</span>
+      <input type="number" id="cgpa-max" value="4" min="0" max="4" step="0.1" placeholder="Max">
+    </div>
+    <button class="action-btn" onclick="applyFilters()"><i class="ti ti-filter"></i> Apply filters</button>
+    <button class="action-btn" onclick="resetAll()"><i class="ti ti-refresh"></i> Reset all</button>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="search-wrap">
+        <i class="ti ti-search"></i>
+        <input id="q" type="text" placeholder="Search by name, department..." oninput="search()">
+      </div>
+      <select id="sort" onchange="search()">
+        <option value="">Relevance</option>
+        <option value="cgpa desc">CGPA: high to low</option>
+        <option value="cgpa asc">CGPA: low to high</option>
+        <option value="name asc">Name: A to Z</option>
+        <option value="year asc">Year: 1 to 4</option>
+      </select>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">Total students</div></div>
+      <div class="stat-card"><div class="num" id="s-results">—</div><div class="lbl">Matching</div></div>
+      <div class="stat-card"><div class="num" id="s-avg">—</div><div class="lbl">Avg CGPA</div></div>
+      <div class="stat-card"><div class="num" id="s-depts">—</div><div class="lbl">Departments</div></div>
+    </div>
+
+    <div class="results-header">
+      <span id="result-label">Loading...</span>
+      <span id="hl-label" style="font-size:12px;color:#aaa"></span>
+    </div>
+    <div class="results-grid" id="results"></div>
+  </main>
+</div>
+
+<script>
+const SOLR = "/solr/students/select";
+
+const DEPT_COLORS = {
+  "Computer Science":     {bg:"#E6F1FB",fg:"#0C447C",bar:"#378ADD"},
+  "Software Engineering": {bg:"#E1F5EE",fg:"#085041",bar:"#1D9E75"},
+  "Data Science":         {bg:"#EEEDFE",fg:"#3C3489",bar:"#7F77DD"},
+  "Cyber Security":       {bg:"#FAECE7",fg:"#712B13",bar:"#D85A30"},
+  "Artificial Intelligence":{bg:"#FAEEDA",fg:"#633806",bar:"#BA7517"},
+};
+const DEFAULT_COLOR = {bg:"#F1EFE8",fg:"#444441",bar:"#888780"};
+
+let activeDept = "";
+let activeYear = "";
+let cgpaMin = 0, cgpaMax = 4;
+let latestSearchId = 0;
+
+function getColor(dept){ return DEPT_COLORS[dept] || DEFAULT_COLOR; }
+function initials(name){ return name.split(" ").map(p=>p[0]).join("").toUpperCase().slice(0,2); }
+function cgpaColor(v){ return v>=3.7?"#1D9E75":v>=3.4?"#378ADD":v>=3.0?"#BA7517":"#D85A30"; }
+
+function hl(text, q){
+  if(!q||q==="*") return text;
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  return text.replace(new RegExp(`(${esc})`,"gi"),'<mark class="hl">$1</mark>');
+}
+
+function renderCard(doc, q){
+  const c = getColor(doc.department);
+  const pct = ((doc.cgpa/4)*100).toFixed(0);
+  return `<div class="card">
+    <div class="avatar" style="background:${c.bg};color:${c.fg}">${initials(doc.name)}</div>
+    <div class="card-body">
+      <div class="card-name">${hl(doc.name||"",q)}</div>
+      <div class="card-dept">${hl(doc.department||"",q)}</div>
+      <div class="card-meta">
+        <span class="badge" style="background:${c.bg};color:${c.fg}">
+          <i class="ti ti-building" style="font-size:10px"></i> ${doc.department}
+        </span>
+        <span class="badge" style="background:#f0f0ee;color:#666">
+          <i class="ti ti-calendar" style="font-size:10px"></i> Year ${doc.year}
+        </span>
+      </div>
+    </div>
+    <div class="cgpa-bar-wrap">
+      <div class="cgpa-val" style="color:${cgpaColor(doc.cgpa)}">${parseFloat(doc.cgpa).toFixed(2)}</div>
+      <div class="cgpa-lbl">CGPA</div>
+      <div class="cgpa-bar"><div class="cgpa-fill" style="width:${pct}%;background:${cgpaColor(doc.cgpa)}"></div></div>
+    </div>
+  </div>`;
+}
+
+function buildFacets(docs){
+  const counts = {};
+  docs.forEach(d=>{ counts[d.department]=(counts[d.department]||0)+1; });
+  const el = document.getElementById("facets");
+  el.innerHTML = `<div class="facet-item ${activeDept===''?'active':''}" onclick="setDept('')">
+    <span>All departments</span><span class="facet-count">${docs.length}</span></div>` +
+    Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([dept,cnt])=>`
+    <div class="facet-item ${activeDept===dept?'active':''}" onclick="setDept('${dept}')">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${dept}">${dept}</span>
+      <span class="facet-count">${cnt}</span>
+    </div>`).join("");
+}
+
+function updateStats(docs, total){
+  document.getElementById("s-total").textContent = total;
+  document.getElementById("s-results").textContent = docs.length;
+  const avg = docs.length ? (docs.reduce((s,d)=>s+parseFloat(d.cgpa),0)/docs.length).toFixed(2) : "—";
+  document.getElementById("s-avg").textContent = avg;
+  document.getElementById("s-depts").textContent = new Set(docs.map(d=>d.department)).size;
+}
+
+async function search(){
+  const searchId = ++latestSearchId;
+  const q = document.getElementById("q").value.trim() || "*:*";
+  const sort = document.getElementById("sort").value;
+
+  const params = new URLSearchParams({
+    q: q === "*:*" ? "*:*" : q,
+    wt: "json",
+    rows: 100,
+    "facet": "true",
+    "facet.field": "department",
+    "hl": "true",
+    "hl.fl": "name,department",
+    "hl.simple.pre": '<mark class="hl">',
+    "hl.simple.post": "</mark>",
+  });
+
+  if(sort) params.append("sort", sort);
+
+  const fq = [];
+  if(activeDept) fq.push(`department:"${activeDept}"`);
+  if(activeYear) fq.push(`year:${activeYear}`);
+  fq.push(`cgpa:[${cgpaMin} TO ${cgpaMax}]`);
+  fq.forEach(f => params.append("fq", f));
+
+  try {
+    const res = await fetch(`${SOLR}?${params}`);
+    if(searchId !== latestSearchId) return;
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if(searchId !== latestSearchId) return;
+    if(!data.response || !Array.isArray(data.response.docs)) throw new Error("Invalid Solr response");
+    const docs = data.response.docs;
+    const total = data.response.numFound;
+
+    document.getElementById("status").textContent = "● Live — Solr connected";
+    document.getElementById("status").className = "status live";
+    document.getElementById("result-label").textContent = `Showing ${docs.length} of ${total} students`;
+    document.getElementById("hl-label").textContent = q !== "*:*" ? `Highlighting "${q}"` : "";
+
+    buildFacets(docs);
+    updateStats(docs, total);
+
+    const el = document.getElementById("results");
+    if(docs.length === 0){
+      el.innerHTML = `<div class="empty"><i class="ti ti-mood-empty"></i><p>No students match your search.</p><p style="font-size:12px;margin-top:4px">Try a different query or reset your filters.</p></div>`;
+    } else {
+      el.innerHTML = docs.map(d => renderCard(d, q === "*:*" ? "" : q)).join("");
+    }
+  } catch(e) {
+    if(searchId !== latestSearchId) return;
+    document.getElementById("status").textContent = "● Solr online";
+    document.getElementById("status").className = "status demo";
+    document.getElementById("result-label").textContent = "";
+    document.getElementById("results").innerHTML = `<div class="empty"><i class="ti ti-plug-off"></i><p></p></div>`;
+  }
+}
+
+function setDept(d){ activeDept = d; search(); }
+function applyFilters(){
+  cgpaMin = parseFloat(document.getElementById("cgpa-min").value) || 0;
+  cgpaMax = parseFloat(document.getElementById("cgpa-max").value) || 4;
+  search();
+}
+function resetAll(){
+  activeDept=""; activeYear=""; cgpaMin=0; cgpaMax=4;
+  document.getElementById("q").value="";
+  document.getElementById("sort").value="";
+  document.getElementById("cgpa-min").value=0;
+  document.getElementById("cgpa-max").value=4;
+  document.querySelectorAll(".ybtn").forEach(b=>b.classList.toggle("active", b.dataset.year===""));
+  search();
+}
+
+document.getElementById("year-btns").addEventListener("click", e=>{
+  const btn = e.target.closest(".ybtn");
+  if(!btn) return;
+  activeYear = btn.dataset.year;
+  document.querySelectorAll(".ybtn").forEach(b=>b.classList.toggle("active", b===btn));
+  search();
+});
+
+search();
+</script>
+</body>
+</html>
